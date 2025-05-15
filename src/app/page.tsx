@@ -1,9 +1,15 @@
+import { auth } from "@/lib/auth";
+import { api } from "@/trpc/server";
+import { headers } from "next/headers";
 import Image from "next/image";
 
-export default function Home() {
+export default async function Home() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  const result = await api.post.hello({ text: "world" })
   return (
     <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
+      <main className="flex-col flex gap-[32px] row-start-2 items-center sm:items-start">
+        {result.greeting}
         <Image
           className="dark:invert"
           src="/next.svg"

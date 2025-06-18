@@ -4,6 +4,9 @@ import { z } from "zod";
 import { authenticatedAction } from "./safe-action";
 import { placesClient } from "../google";
 import { chromium } from "playwright";
+import { db } from "@/db/drizzle";
+import { userBusiness } from "@/db/schema";
+import { redirect } from "next/navigation";
 
 export const google = authenticatedAction
   .createServerAction()
@@ -11,10 +14,12 @@ export const google = authenticatedAction
     z.object({
       businessName: z.string(),
       address: z.string(),
-      phoneNumber: z.string(),
+      lat: z.string(),
+      lng: z.string(),
     }),
   )
   .handler(async ({ input }) => {
+    const { lat, lng } = input;
     const callOptions = {
       otherArgs: {
         headers: {
@@ -26,6 +31,15 @@ export const google = authenticatedAction
     const res = await placesClient.searchText(
       {
         textQuery: input.businessName,
+        locationBias: {
+          circle: {
+            center: {
+              latitude: Number(lat),
+              longitude: Number(lng),
+            },
+            radius: 10000, // radius in meters, adjust as needed
+          },
+        },
       },
       callOptions,
     );
@@ -41,7 +55,8 @@ export const bing = authenticatedAction
     z.object({
       businessName: z.string(),
       address: z.string(),
-      phoneNumber: z.string(),
+      lat: z.string(),
+      lng: z.string(),
     }),
   )
   .handler(async ({ input }) => {
@@ -51,7 +66,7 @@ export const bing = authenticatedAction
     const query = `${input.businessName} ${input.address}`;
 
     try {
-      await page.goto("https://www.bing.com/maps");
+      await page.goto(`https://www.bing.com/maps?cp=${input.lat}~${input.lng}`);
 
       const searchInput = page.locator("input#maps_sb");
       await searchInput.fill(query);
@@ -77,7 +92,8 @@ export const apple = authenticatedAction
     z.object({
       businessName: z.string(),
       address: z.string(),
-      phoneNumber: z.string(),
+      lat: z.string(),
+      lng: z.string(),
     }),
   )
   .handler(async ({ /* ctx, */ input }) => {
@@ -87,7 +103,9 @@ export const apple = authenticatedAction
 
     try {
       const page = await browser.newPage();
-      await page.goto("https://maps.apple.com/search");
+      await page.goto(
+        `https://maps.apple.com/search?center=${input.lat}%2C${input.lng}`,
+      );
 
       const searchInput = page.locator("input#mw-search-input");
       await searchInput.fill(query);
@@ -138,12 +156,70 @@ export const AddressSearchAutoComplete = authenticatedAction
     return res[0]?.suggestions;
   });
 
-export const scanNapData = authenticatedAction
+export const saveBusinessInfo = authenticatedAction
   .createServerAction()
   .input(
     z.object({
       businessName: z.string(),
       address: z.string(),
+      placeId: z.string(),
     }),
   )
-  .handler(async ({ input }) => {});
+  .handler(async ({ input, ctx }) => {
+    const { businessName, placeId } = input;
+    const user = ctx.user;
+
+    const callOptions = {
+      otherArgs: {
+        headers: {
+          "X-Goog-FieldMask": "formattedAddress,location",
+        },
+      },
+    };
+
+    const res = await placesClient.getPlace(
+      {
+        name: placeId,
+      },
+      callOptions,
+    );
+
+    const formattedAddress = res[0].formattedAddress;
+    const lat = res[0].location?.latitude;
+    const lng = res[0].location?.longitude;
+    const country = res[0].displayName?.languageCode;
+
+    await db.insert(userBusiness).values({
+      // @ts-expect-error Weird fkn bug in drizzle
+      userId: user.id,
+      businessName,
+      address: formattedAddress,
+      country,
+      lat,
+      lng,
+    });
+
+    redirect("/scan/results");
+  });
+
+export const scanBusinessInfo = authenticatedAction
+  .createServerAction()
+  .handler(async ({ ctx }) => {
+    const user = ctx.user;
+
+    const businessData = await db.query.userBusiness.findFirst({
+      where: (userBusiness, { eq }) => eq(userBusiness.userId, user.id),
+    });
+
+    if (!businessData) {
+      redirect("/scan");
+    }
+
+    const { businessName, address, lat, lng } = businessData;
+
+    const [] = await Promise.all([
+      google({ businessName, address, lat, lng }),
+      bing({ businessName, address, lat, lng }),
+      apple({ businessName, address, lat, lng }),
+    ]);
+  });

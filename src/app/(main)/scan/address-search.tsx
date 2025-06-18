@@ -7,9 +7,8 @@ import { LoaderCircleIcon, MapPinIcon, SearchIcon } from 'lucide-react';
 import React, { useEffect, useState } from 'react'
 import { useDebounce } from 'use-debounce';
 
-export default function AddressSearch() {
+export default function AddressSearch({ selectedAddress, setSelectedAddress, appendFormValue }: { selectedAddress: string, setSelectedAddress: (address: string) => void, appendFormValue: (selectedAddress: string, placeId: string) => void }) {
     const [input, setInput] = useState('');
-    const [selectedAddress, setSelectedAddress] = useState("");
     const [debouncedInput] = useDebounce(input, 300);
 
     const { status, data: addressResult, mutate: serachForAddress } = useMutation({
@@ -18,6 +17,10 @@ export default function AddressSearch() {
             return result[0];
         },
     });
+
+
+
+
 
     useEffect(() => {
         if (debouncedInput && !selectedAddress) {
@@ -56,6 +59,8 @@ export default function AddressSearch() {
                             console.log("Selected address:", result.placePrediction?.text?.text);
                             setInput(result.placePrediction?.text?.text || "");
                             setSelectedAddress(result.placePrediction?.text?.text || "");
+
+                            appendFormValue(result.placePrediction?.placeId, result.placePrediction?.text?.text || "");
                         }}
 
                     >

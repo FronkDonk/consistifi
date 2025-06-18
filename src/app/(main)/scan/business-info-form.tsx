@@ -16,27 +16,40 @@ import {
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import AddressSearch from "./address-search"
+import { useState } from "react"
+import { Label } from "@/components/ui/label"
+import { saveBusinessInfo } from "@/lib/actions/nap.actions"
 
 const formSchema = z.object({
     businessName: z.string().nonempty("Business name is required"),
     address: z.string().nonempty("Address is required"),
+    placeId: z.string().nonempty("Place ID is required"),
 })
 
 export function BusinessInfoForm() {
     // 1. Define your form.
+    const [selectedAddress, setSelectedAddress] = useState("");
+
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             businessName: "",
             address: "",
+            placeId: "",
         },
     })
 
     // 2. Define a submit handler.
-    function onSubmit(values: z.infer<typeof formSchema>) {
+    async function onSubmit(values: z.infer<typeof formSchema>) {
         // Do something with the form values.
         // ✅ This will be type-safe and validated.
         console.log(values)
+        await saveBusinessInfo(values)
+    }
+
+    function appendFormValue(selectedAddress: string, placeId: string) {
+        form.setValue("address", selectedAddress)
+        form.setValue("placeId", placeId)
     }
 
 
@@ -45,12 +58,12 @@ export function BusinessInfoForm() {
             <CardContent>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                        < FormField
+                        <FormField
                             control={form.control}
                             name="businessName"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Business name</FormLabel>
+                                    <FormLabel className="font-bold">Business name</FormLabel>
                                     <FormControl>
                                         <Input  {...field} />
                                     </FormControl>
@@ -59,22 +72,12 @@ export function BusinessInfoForm() {
                             )
                             }
                         />
-                        <FormField
-                            control={form.control}
-                            name="address"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Address</FormLabel>
-                                    <FormControl>
-                                        <Input  {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <AddressSearch />
+                        <div className="space-y-2">
+                            <Label className="font-bold">Address</Label>
+                            <AddressSearch appendFormValue={appendFormValue} selectedAddress={selectedAddress} setSelectedAddress={setSelectedAddress} />
+                        </div>
                         <Button className="w-full" type="submit" > Submit</Button >
-                    </form >
+                    </form>
                 </Form >
             </CardContent >
         </Card >

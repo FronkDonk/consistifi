@@ -67,15 +67,24 @@ export const bing = authenticatedAction
 
     try {
       await page.goto(`https://www.bing.com/maps?cp=${input.lat}~${input.lng}`);
-
       const searchInput = page.locator("input#maps_sb");
       await searchInput.fill(query);
+
       await searchInput.press("Enter");
-      await page.waitForSelector(".b_entityTP", { timeout: 10000 });
 
       await page.screenshot({ path: "bing_maps_result.png", fullPage: true });
 
-      const name = await page.locator(".nameContainer").first().innerText();
+      await page.waitForSelector(".nameContainer", { timeout: 10000 });
+
+      await page.screenshot({ path: "bing_maps_result.png", fullPage: true });
+
+      const name = await page.$eval(".nameContainer", (el) => {
+        // Get only the direct text content, excluding nested buttons
+        return Array.from(el.childNodes)
+          .filter((node) => node.nodeType === Node.TEXT_NODE)
+          .map((node) => (node.textContent ?? "").trim())
+          .join("");
+      });
       const address = await page.locator(".iconDataList").first().innerText();
       const phone = await page.locator('a[href^="tel:"]').first().innerText();
       console.log("📞 Phone number:", phone);
@@ -168,36 +177,41 @@ export const saveBusinessInfo = authenticatedAction
   .handler(async ({ input, ctx }) => {
     const { businessName, placeId } = input;
     const user = ctx.user;
-
-    const callOptions = {
-      otherArgs: {
-        headers: {
-          "X-Goog-FieldMask": "formattedAddress,location",
+    try {
+      console.log("Saving business info for user:", user.id);
+      const callOptions = {
+        otherArgs: {
+          headers: {
+            "X-Goog-FieldMask": "formattedAddress,location,displayName",
+          },
         },
-      },
-    };
+      };
 
-    const res = await placesClient.getPlace(
-      {
-        name: placeId,
-      },
-      callOptions,
-    );
+      const res = await placesClient.getPlace(
+        {
+          name: `places/${placeId}`,
+        },
+        callOptions,
+      );
+      console.log("Place details:", res[0]);
 
-    const formattedAddress = res[0].formattedAddress;
-    const lat = res[0].location?.latitude;
-    const lng = res[0].location?.longitude;
-    const country = res[0].displayName?.languageCode;
+      const formattedAddress = res[0].formattedAddress;
+      const lat = res[0].location?.latitude;
+      const lng = res[0].location?.longitude;
+      const country = res[0].displayName?.languageCode;
 
-    await db.insert(userBusiness).values({
-      // @ts-expect-error Weird fkn bug in drizzle
-      userId: user.id,
-      businessName,
-      address: formattedAddress,
-      country,
-      lat,
-      lng,
-    });
+      await db.insert(userBusiness).values({
+        // @ts-expect-error Weird fkn bug in drizzle
+        userId: user.id,
+        businessName,
+        address: formattedAddress,
+        country,
+        lat,
+        lng,
+      });
+    } catch (error) {
+      console.log(error);
+    }
 
     redirect("/scan/results");
   });
@@ -206,12 +220,13 @@ export const scanBusinessInfo = authenticatedAction
   .createServerAction()
   .handler(async ({ ctx }) => {
     const user = ctx.user;
-
+    console.log("Scanning business info for user:", user.id);
     const businessData = await db.query.userBusiness.findFirst({
       where: (userBusiness, { eq }) => eq(userBusiness.userId, user.id),
     });
 
     if (!businessData) {
+      console.log("No business data found for user:", user.id);
       redirect("/scan");
     }
 

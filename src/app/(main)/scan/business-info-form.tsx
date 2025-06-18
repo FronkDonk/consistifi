@@ -47,7 +47,7 @@ export function BusinessInfoForm() {
         await saveBusinessInfo(values)
     }
 
-    function appendFormValue(selectedAddress: string, placeId: string) {
+    function appendFormValue({ selectedAddress, placeId }: { selectedAddress: string, placeId: string }) {
         form.setValue("address", selectedAddress)
         form.setValue("placeId", placeId)
     }

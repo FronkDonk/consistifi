@@ -121,3 +121,29 @@ export const apple = authenticatedAction
       await browser.close();
     }
   });
+
+export const AddressSearchAutoComplete = authenticatedAction
+  .createServerAction()
+  .input(
+    z.object({
+      address: z.string(),
+    }),
+  )
+  .handler(async ({ input }) => {
+    const { address } = input;
+    const res = await placesClient.autocompletePlaces({
+      input: address,
+    });
+
+    return res[0]?.suggestions;
+  });
+
+export const scanNapData = authenticatedAction
+  .createServerAction()
+  .input(
+    z.object({
+      businessName: z.string(),
+      address: z.string(),
+    }),
+  )
+  .handler(async ({ input }) => {});

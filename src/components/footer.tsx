@@ -4,7 +4,7 @@ import { Button } from './ui/button'
 
 export default function Footer() {
     return (
-        <footer className='relative flex flex-col gap-20 rounded-4xl shadow-sm bg-card pt-40'>
+        <footer className='flex flex-col gap-20 rounded-4xl shadow-sm bg-card pt-40'>
             <div className='flex gap-5 justify-center'>
                 <p className='font-semibold tracking-tight text-muted-foreground'>Product</p>
                 <p className='font-semibold tracking-tight text-muted-foreground'>About us</p>

@@ -311,14 +311,29 @@ export const scanBusinessInfo = authenticatedAction
       ),
     );
 
-    return {
-      googleResult,
-      googleData,
-      bingResult,
-      bingData,
-      appleResult,
-      appleData,
-    };
+    return [
+      {
+        source: "google",
+        result: googleResult,
+        businessName: googleData?.googleName,
+        address: googleData?.googleAddress,
+        phone: googleData?.googlePhone,
+      },
+      {
+        source: "bing",
+        result: bingResult,
+        businessName: bingData?.bingName,
+        address: bingData?.bingAddress,
+        phone: bingData?.bingPhone,
+      },
+      {
+        source: "apple",
+        result: appleResult,
+        businessName: appleData?.appleName,
+        address: appleData?.appleAddress,
+        phone: appleData?.applePhone,
+      },
+    ];
   });
 
 export const checkBusinessConsistency = authenticatedAction

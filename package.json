@@ -39,6 +39,7 @@
     "clsx": "^2.1.1",
     "dotenv": "^16.5.0",
     "drizzle-orm": "^0.43.1",
+    "libphonenumber-js": "^1.12.9",
     "lucide-react": "^0.510.0",
     "motion": "^12.18.1",
     "next": "^15.3.3",

@@ -7,6 +7,8 @@ import { chromium } from "playwright";
 import { db } from "@/db/drizzle";
 import { userBusiness } from "@/db/schema";
 import { redirect } from "next/navigation";
+import { CountryCode, parsePhoneNumberWithError } from "libphonenumber-js";
+import { parse } from "path";
 
 export const google = authenticatedAction
   .createServerAction()
@@ -47,6 +49,12 @@ export const google = authenticatedAction
     console.log(res?.[0]?.places?.[0]?.formattedAddress ?? "No address found");
     console.log(res?.[0]?.places?.[0]?.nationalPhoneNumber ?? "No phone found");
     console.log(res?.[0]?.places?.[0]?.displayName?.text ?? "No name found");
+
+    return {
+      googleAddress: res?.[0]?.places?.[0]?.formattedAddress,
+      googlePhone: res?.[0]?.places?.[0]?.nationalPhoneNumber,
+      googleName: res?.[0]?.places?.[0]?.displayName?.text,
+    };
   });
 
 export const bing = authenticatedAction
@@ -87,9 +95,12 @@ export const bing = authenticatedAction
       });
       const address = await page.locator(".iconDataList").first().innerText();
       const phone = await page.locator('a[href^="tel:"]').first().innerText();
-      console.log("📞 Phone number:", phone);
-      console.log("🏢 Name:", name);
-      console.log("📍 Address:", address);
+
+      return {
+        bingName: name,
+        bingAddress: address,
+        bingPhone: phone,
+      };
     } finally {
       await browser.close();
     }
@@ -141,9 +152,11 @@ export const apple = authenticatedAction
         .first()
         .innerText();
 
-      console.log("📞 apple Phone number:", phoneNumber);
-      console.log("🏢 apple Name:", name);
-      console.log("📍 apple Address:", fullAddress);
+      return {
+        appleName: name,
+        appleAddress: fullAddress,
+        applePhone: phoneNumber,
+      };
     } finally {
       await browser.close();
     }
@@ -182,11 +195,13 @@ export const saveBusinessInfo = authenticatedAction
       const callOptions = {
         otherArgs: {
           headers: {
-            "X-Goog-FieldMask": "formattedAddress,location,displayName",
+            "X-Goog-FieldMask":
+              "formattedAddress,location,displayName,postalAddress,nationalPhoneNumber",
           },
         },
       };
 
+      console.log("Fetching place details for placeId:", placeId);
       const res = await placesClient.getPlace(
         {
           name: `places/${placeId}`,
@@ -198,16 +213,18 @@ export const saveBusinessInfo = authenticatedAction
       const formattedAddress = res[0].formattedAddress;
       const lat = res[0].location?.latitude;
       const lng = res[0].location?.longitude;
-      const country = res[0].displayName?.languageCode;
+      const regionCode = res[0].postalAddress?.regionCode;
+      const phone = res[0].nationalPhoneNumber;
 
       await db.insert(userBusiness).values({
         // @ts-expect-error Weird fkn bug in drizzle
         userId: user.id,
         businessName,
         address: formattedAddress,
-        country,
+        regionCode,
         lat,
         lng,
+        phone,
       });
     } catch (error) {
       console.log(error);
@@ -230,11 +247,205 @@ export const scanBusinessInfo = authenticatedAction
       redirect("/scan");
     }
 
-    const { businessName, address, lat, lng } = businessData;
+    const { businessName, address, lat, lng, phone, regionCode } = businessData;
 
-    const [] = await Promise.all([
+    const [
+      [googleData, googleError],
+      [bingData, bingError],
+      [appleData, appleError],
+    ] = await Promise.all([
       google({ businessName, address, lat, lng }),
       bing({ businessName, address, lat, lng }),
       apple({ businessName, address, lat, lng }),
     ]);
+
+    if (googleError || bingError || appleError) {
+      console.error("Error fetching business data:", {
+        googleError,
+        bingError,
+        appleError,
+      });
+    }
+
+    const sources = [
+      {
+        source: "google",
+        address: googleData?.googleAddress ?? "",
+        phone: googleData?.googlePhone ?? "",
+        name: googleData?.googleName ?? "",
+      },
+      {
+        source: "bing",
+        address: bingData?.bingAddress ?? "",
+        phone: bingData?.bingPhone ?? "",
+        name: bingData?.bingName ?? "",
+      },
+      {
+        source: "apple",
+        address: appleData?.appleAddress ?? "",
+        phone: appleData?.applePhone ?? "",
+        name: appleData?.appleName ?? "",
+      },
+    ];
+
+    const [
+      [googleResult, googleResultError],
+      [bingResult, bingResultError],
+      [appleResult, appleResultError],
+    ] = await Promise.all(
+      sources.map(
+        ({
+          address: externalAddress,
+          phone: externalPhone,
+          name: externalName,
+        }) =>
+          checkBusinessConsistency({
+            userAddress: address,
+            address: externalAddress,
+            userBusinessName: businessName,
+            businessName: externalName,
+            userPhone: phone,
+            phone: externalPhone,
+            regionCode,
+          }),
+      ),
+    );
+
+    return {
+      googleResult,
+      googleData,
+      bingResult,
+      bingData,
+      appleResult,
+      appleData,
+    };
   });
+
+export const checkBusinessConsistency = authenticatedAction
+  .createServerAction()
+  .input(
+    z.object({
+      userBusinessName: z.string(),
+      businessName: z.string(),
+      userAddress: z.string(),
+      address: z.string(),
+      userPhone: z.string(),
+      phone: z.string(),
+      regionCode: z.string(),
+    }),
+  )
+  .handler(async ({ input, ctx }) => {
+    const {
+      userBusinessName,
+      businessName,
+      userAddress,
+      address,
+      userPhone,
+      phone,
+      regionCode,
+    } = input;
+
+    console.log("CHECKING BUSINESS CONSISTENCY");
+    let phoneMatch = false;
+    let addressMatch = false;
+    let businessNameMatch = false;
+
+    // --- PHONE COMPARISON ---
+    try {
+      console.log("Parsing phone numbers:", userPhone, phone, regionCode);
+      const phone1 = parsePhoneNumberWithError(
+        userPhone,
+        regionCode as CountryCode,
+      );
+      const phone2 = parsePhoneNumberWithError(
+        phone,
+        regionCode as CountryCode,
+      );
+
+      if (phone1.number === phone2.number) {
+        phoneMatch = true;
+        console.log("Phone numbers match:", phone1.number);
+      }
+    } catch (e) {
+      console.warn("Phone parse error:", e);
+    }
+
+    const normalizedUserBusinessName = normalizeNameStrict(userBusinessName);
+    const normalizedBusinessName = normalizeNameStrict(businessName);
+
+    if (normalizedUserBusinessName === normalizedBusinessName) {
+      businessNameMatch = true;
+      console.log(
+        "Business names match:",
+        normalizedUserBusinessName,
+        normalizedBusinessName,
+      );
+    }
+    const callOptions = {
+      otherArgs: {
+        headers: {
+          "X-Goog-FieldMask": "places.formattedAddress,places.displayName",
+        },
+      },
+    };
+    try {
+      if (!address || !userAddress) {
+        console.error("Missing address or userAddress:", {
+          address,
+          userAddress,
+        });
+      }
+      console.log(address);
+      console.log(userAddress);
+      const [res, res2] = await Promise.all([
+        await placesClient.searchText(
+          {
+            textQuery: address,
+          },
+          callOptions,
+        ),
+        await placesClient.searchText(
+          {
+            textQuery: userAddress,
+          },
+          callOptions,
+        ),
+      ]);
+
+      console.log("Address search results:", res, res2);
+
+      const normalizedUserAddress =
+        res?.[0]?.places?.[0]?.formattedAddress ?? "";
+      const normalizedAddress = res2?.[0]?.places?.[0]?.formattedAddress ?? "";
+
+      if (
+        normalizedAddress &&
+        normalizedUserAddress &&
+        normalizedUserAddress === normalizedAddress
+      ) {
+        addressMatch = true;
+      }
+
+      return {
+        phoneMatch,
+        businessNameMatch,
+        addressMatch,
+      };
+    } catch (error) {
+      console.error("Error during address search:", error);
+    }
+  });
+
+export async function normalizeNameStrict(name: string, soft = false) {
+  let result = name
+    .toLowerCase()
+    .replace(/[\p{P}$+<=>^`|~]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (soft) {
+    result = result.replace(/\b(ab|llc|inc|corp|ltd)\b/g, "").trim();
+  }
+
+  return result;
+}

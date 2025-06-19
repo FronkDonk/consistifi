@@ -60,9 +60,10 @@ export const userBusiness = pgTable("user_business", {
     .references(() => users.id, { onDelete: "cascade" }),
   businessName: text("business_name").notNull(),
   address: text("address").notNull(),
+  phone: text("phone").notNull(),
   lat: text("lat").notNull(),
   lng: text("lng").notNull(),
-  country: text("country").notNull(),
+  regionCode: text("region_code").notNull(),
 });
 
 export type InsertUser = typeof users.$inferInsert;

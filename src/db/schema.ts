@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -48,6 +49,21 @@ export const verifications = pgTable("verifications", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at"),
   updatedAt: timestamp("updated_at"),
+});
+
+export const userBusiness = pgTable("user_business", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  businessName: text("business_name").notNull(),
+  address: text("address").notNull(),
+  phone: text("phone").notNull(),
+  lat: text("lat").notNull(),
+  lng: text("lng").notNull(),
+  regionCode: text("region_code").notNull(),
 });
 
 export type InsertUser = typeof users.$inferInsert;

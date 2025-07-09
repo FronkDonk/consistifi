@@ -15,10 +15,10 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
-import AddressSearch from "./address-search"
 import { useState } from "react"
 import { Label } from "@/components/ui/label"
 import { saveBusinessInfo } from "@/lib/actions/nap.actions"
+import { BusinessSearch } from "./business-search"
 
 const formSchema = z.object({
     businessName: z.string().nonempty("Business name is required"),
@@ -27,8 +27,7 @@ const formSchema = z.object({
 })
 
 export function BusinessInfoForm() {
-    // 1. Define your form.
-    const [selectedAddress, setSelectedAddress] = useState("");
+    const [selectedBusiness, setSelectedBusiness] = useState("");
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -47,8 +46,9 @@ export function BusinessInfoForm() {
         await saveBusinessInfo(values)
     }
 
-    function appendFormValue({ selectedAddress, placeId }: { selectedAddress: string, placeId: string }) {
-        form.setValue("address", selectedAddress)
+    function appendFormValue({ selectedBusinessName, address, placeId }: { selectedBusinessName: string, address: string, placeId: string }) {
+        form.setValue("businessName", selectedBusinessName)
+        form.setValue("address", address)
         form.setValue("placeId", placeId)
     }
 
@@ -58,7 +58,7 @@ export function BusinessInfoForm() {
             <CardContent>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                        <FormField
+                        {/* <FormField
                             control={form.control}
                             name="businessName"
                             render={({ field }) => (
@@ -71,10 +71,10 @@ export function BusinessInfoForm() {
                                 </FormItem>
                             )
                             }
-                        />
+                        /> */}
                         <div className="space-y-2">
-                            <Label className="font-bold">Address</Label>
-                            <AddressSearch appendFormValue={appendFormValue} selectedAddress={selectedAddress} setSelectedAddress={setSelectedAddress} />
+                            <Label className="font-bold">Business name</Label>
+                            <BusinessSearch appendFormValue={appendFormValue} selectedBusiness={selectedBusiness} setSelectedBusiness={setSelectedBusiness} />
                         </div>
                         <Button className="w-full" type="submit" > Submit</Button >
                     </form>

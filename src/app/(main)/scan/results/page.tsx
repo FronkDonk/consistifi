@@ -1,20 +1,15 @@
 import { scanBusinessInfo } from '@/lib/actions/nap.actions'
-import {
-    Table,
-    TableBody,
-    TableCaption,
-    TableCell,
-    TableFooter,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CheckCircleIcon, CheckIcon, MessageCircleWarningIcon, TriangleAlertIcon, UserRoundCheckIcon } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { ListingResultCard } from './listing-result-card'
 
 export default async function ScanResultPage() {
-    /*     const [data, error] = await scanBusinessInfo()
-     */
+    const [data, error] = await scanBusinessInfo()
+
+
   /*   if (error) {
         console.error("Error fetching business info:", error)
     }
@@ -24,10 +19,23 @@ export default async function ScanResultPage() {
 /*     console.log(data)
  */    return (
         <main className='max-w-7xl mx-auto'>
+            <header className=''>
+                <h1 className='typography-h1 text-left'>Scan Results</h1>
+                <p className='typography-h4 text-muted-foreground'>Here&apos;s what we found for Joe&apos;s Pizza Palace            </p>
+            </header>
+            <Card>
+                <CardContent>
+                    <CardTitle className='typograph-h4'>Summary overview</CardTitle>
+                    <div className='flex'>
+                        <p>Google</p>
+                        <Badge variant="outline">All good</Badge>
+                    </div>
+                </CardContent>
+            </Card>
             <Card>
                 <CardHeader>
                     <CardTitle className='typography-h4'>
-                        Current Business Information
+                        Your Submitted information
                     </CardTitle>
                 </CardHeader>
 
@@ -45,41 +53,23 @@ export default async function ScanResultPage() {
                     </div>
                 </CardContent>
             </Card>
-            <h3 className='typography-h4'>Platform scan results</h3>
-            <Card>
-                <CardContent>
-                    <Table className=''>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Brand</TableHead>
-                                <TableHead>Business name</TableHead>
-                                <TableHead>Address</TableHead>
-                                <TableHead>Phone</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            <TableRow>
-                                <TableCell className="font-bold capitalize">Google</TableCell>
-                                <TableCell className="">
-                                    <div className='flex items-center gap-1 '>
-                                        Joes Pizza
-                                        <CheckCircleIcon className='stroke-green-500' />
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    <div className='flex items-center gap-1 '>
-                                        123 Main St, Springfield, IL
-                                        <CheckCircleIcon className='stroke-green-500' />
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    <div className='flex items-center gap-1 '>
-                                        (123) 456-7890
-                                        <CheckCircleIcon className='stroke-green-500' />
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                            {/*  {data?.map((result, index) => (
+            <section className='grid grid-cols-2 gap-5 mt-5'>
+
+                {data?.map((result, i) => (
+                    <ListingResultCard
+                        key={i}
+                        source={result.source}
+                        businessName={result.businessName || ""}
+                        address={result.address || ""}
+                        phone={result.phone || ""}
+                        result={result.result}
+                    />
+                ))}
+            </section>
+        </main>
+    )
+}
+{/*  {data?.map((result, index) => (
                                 <TableRow key={result.source}>
                                     <TableCell className="font-bold capitalize">{result.source}</TableCell>
                                     <TableCell className="">
@@ -102,53 +92,3 @@ export default async function ScanResultPage() {
                                     </TableCell>
                                 </TableRow>
                             ))} */}
-                        </TableBody>
-                        {/*  <TableFooter>
-                            <TableRow>
-                                <TableCell colSpan={3}>Total</TableCell>
-                                <TableCell className="text-right">$2,500.00</TableCell>
-                            </TableRow>
-                        </TableFooter> */}
-                    </Table>
-                </CardContent>
-            </Card>
-            <Card className='w-1/2'>
-                <CardHeader>
-                    <CardTitle className='typography-h4'>Google</CardTitle>
-                    <CardDescription>
-                        {/* Icon */} Need Attention
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className='flex justify-between'>
-                    <section className=''>
-                        Your data
-                    </section>
-                    <aside>
-                        found on google
-                    </aside>
-                </CardContent>
-
-            </Card>
-            <Card className='w-1/2'>
-                <CardHeader>
-                    <CardTitle className='typography-h4'>Google</CardTitle>
-                    <CardDescription>
-                        {/* Icon */} Need Attention
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className='flex justify-between'>
-                    <section className=''>
-                        Your data
-                    </section>
-                    <aside>
-                        found on google
-                    </aside>
-                </CardContent>
-
-            </Card>
-            <div>
-
-            </div>
-        </main>
-    )
-}

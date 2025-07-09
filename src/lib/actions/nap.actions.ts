@@ -162,17 +162,17 @@ export const apple = authenticatedAction
     }
   });
 
-export const AddressSearchAutoComplete = authenticatedAction
+export const BusinessSearchAutoComplete = authenticatedAction
   .createServerAction()
   .input(
     z.object({
-      address: z.string(),
+      businessName: z.string(),
     }),
   )
   .handler(async ({ input }) => {
-    const { address } = input;
+    const { businessName } = input;
     const res = await placesClient.autocompletePlaces({
-      input: address,
+      input: businessName,
     });
 
     return res[0]?.suggestions;

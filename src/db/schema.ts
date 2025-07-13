@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { relations } from "drizzle-orm";
 import { boolean, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -82,6 +83,10 @@ export const scan = pgTable("scan", {
   scanDate: timestamp("scan_date").notNull().defaultNow(),
 });
 
+export const scanRelations = relations(scan, ({ many }) => ({
+  scanResults: many(scanResults),
+}));
+
 export const scanResults = pgTable("scan_results", {
   id: text("id")
     .primaryKey()
@@ -103,6 +108,13 @@ export const scanResults = pgTable("scan_results", {
     | undefined
   >(),
 });
+
+export const scanResultsRelations = relations(scanResults, ({ one }) => ({
+  scan: one(scan, {
+    fields: [scanResults.scanId],
+    references: [scan.id],
+  }),
+}));
 
 export type InsertUser = typeof users.$inferInsert;
 export type SelectUser = typeof users.$inferSelect;

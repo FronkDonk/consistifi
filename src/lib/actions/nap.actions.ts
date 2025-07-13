@@ -5,7 +5,7 @@ import { authenticatedAction } from "./safe-action";
 import { placesClient } from "../google";
 import { chromium } from "playwright";
 import { db } from "@/db/drizzle";
-import { userBusiness } from "@/db/schema";
+import { scan, scanResults, userBusiness } from "@/db/schema";
 import { redirect } from "next/navigation";
 import { CountryCode, parsePhoneNumberWithError } from "libphonenumber-js";
 import { parse } from "path";
@@ -310,6 +310,41 @@ export const scanBusinessInfo = authenticatedAction
           }),
       ),
     );
+
+    const scanId = crypto.randomUUID();
+
+    await Promise.all([
+      db.insert(scan).values({
+        id: scanId,
+        userBusinessId: businessData.id,
+        businessName: businessData.businessName,
+        platforms: "3",
+      }),
+      db.insert(scanResults).values({
+        scanId: scanId,
+        source: "google",
+        businessName: googleData?.googleName ?? "",
+        address: googleData?.googleAddress ?? "",
+        phone: googleData?.googlePhone ?? "",
+        results: googleResult,
+      }),
+      db.insert(scanResults).values({
+        scanId: scanId,
+        source: "bing",
+        businessName: bingData?.bingName ?? "",
+        address: bingData?.bingAddress ?? "",
+        phone: bingData?.bingPhone ?? "",
+        results: bingResult,
+      }),
+      db.insert(scanResults).values({
+        scanId: scanId,
+        source: "apple",
+        businessName: appleData?.appleName ?? "",
+        address: appleData?.appleAddress ?? "",
+        phone: appleData?.applePhone ?? "",
+        results: appleResult,
+      }),
+    ]);
 
     return [
       {

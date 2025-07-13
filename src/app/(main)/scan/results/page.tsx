@@ -5,6 +5,7 @@ import { CheckCircleIcon, CheckIcon, MessageCircleWarningIcon, TriangleAlertIcon
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ListingResultCard } from './listing-result-card'
+import { Label } from '@/components/ui/label'
 
 export default async function ScanResultPage() {
     const [data, error] = await scanBusinessInfo()
@@ -38,24 +39,15 @@ export default async function ScanResultPage() {
                         Your Submitted information
                     </CardTitle>
                 </CardHeader>
-
-                <CardContent className='flex gap-80 '>
-                    <div>
-                        <p className='font-bold'>Business name</p>
-                        <p>Joes pizza</p>
-                    </div>
-                    <div>
-                        <p className='font-bold'>Address</p>
-                    </div>
-                    <div>
-                        <p className='font-bold'>Phone</p>
-
-                    </div>
+                <CardContent className='space-y-4'>
+                    <Label>Business name:</Label>
+                    <Label>Address:</Label>
+                    <Label>Phone:</Label>
                 </CardContent>
             </Card>
             <section className='grid grid-cols-2 gap-5 mt-5'>
 
-                {data?.map((result, i) => (
+                {/*  {data?.map((result, i) => (
                     <ListingResultCard
                         key={i}
                         source={result.source}
@@ -64,7 +56,7 @@ export default async function ScanResultPage() {
                         phone={result.phone || ""}
                         result={result.result}
                     />
-                ))}
+                ))} */}
             </section>
         </main>
     )

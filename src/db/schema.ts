@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -61,9 +61,47 @@ export const userBusiness = pgTable("user_business", {
   businessName: text("business_name").notNull(),
   address: text("address").notNull(),
   phone: text("phone").notNull(),
+  country: text("country").notNull(),
   lat: text("lat").notNull(),
   lng: text("lng").notNull(),
   regionCode: text("region_code").notNull(),
+});
+
+export const scan = pgTable("scan", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => randomUUID()),
+  userBusinessId: text("user_business_id").references(() => userBusiness.id, {
+    onDelete: "cascade",
+  }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  businessName: text("business_name").notNull(),
+  platforms: text("platforms").notNull(),
+  scanDate: timestamp("scan_date").notNull().defaultNow(),
+});
+
+export const scanResults = pgTable("scan_results", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => randomUUID()),
+  scanId: text("scan_id").references(() => scan.id, {
+    onDelete: "cascade",
+  }),
+  source: text("source").notNull(),
+  businessName: text("business_name").notNull(),
+  address: text("address").notNull(),
+  phone: text("phone").notNull(),
+  results: jsonb("results").$type<
+    | {
+        phoneMatch: boolean;
+        businessNameMatch: boolean;
+        addressMatch: boolean;
+      }
+    | null
+    | undefined
+  >(),
 });
 
 export type InsertUser = typeof users.$inferInsert;

@@ -1,6 +1,14 @@
 import { randomUUID } from "crypto";
 import { relations } from "drizzle-orm";
-import { boolean, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  smallint,
+} from "drizzle-orm/pg-core";
+import { number } from "zod";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -10,6 +18,7 @@ export const users = pgTable("users", {
   image: text("image"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
+  stripeCustomerId: text("stripe_customer_id"),
 });
 
 export const sessions = pgTable("sessions", {
@@ -107,6 +116,21 @@ export const scanResults = pgTable("scan_results", {
     | null
     | undefined
   >(),
+});
+
+export const subscriptions = pgTable("subscriptions", {
+  id: text("id").primaryKey(),
+  plan: text("plan").notNull(),
+  referenceId: text("reference_id").notNull(),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  status: text("status").notNull(),
+  periodStart: timestamp("period_start"),
+  periodEnd: timestamp("period_end"),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end"),
+  seats: smallint("seats"),
+  trialStart: timestamp("trial_start"),
+  trialEnd: timestamp("trial_end"),
 });
 
 export const scanResultsRelations = relations(scanResults, ({ one }) => ({

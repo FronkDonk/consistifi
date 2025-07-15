@@ -3,6 +3,13 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import * as schema from "@/db/schema";
 import { nextCookies } from "better-auth/next-js";
+import { stripe } from "@better-auth/stripe";
+import Stripe from "stripe";
+
+const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2025-03-31.basil",
+});
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg", // or "pg" or "mysql"
@@ -25,5 +32,25 @@ export const auth = betterAuth({
     },
   },
 
-  plugins: [nextCookies()], // make sure this is the last plugin in the array
+  plugins: [
+    stripe({
+      subscription: {
+        enabled: true,
+        plans: [
+          {
+            name: "starter yearly",
+            priceId: "prod_SgVk6hzHgMUvtl",
+          },
+          {
+            name: "starter monthly",
+            priceId: "prod_SgVgRwBH9nOnY6",
+          },
+        ],
+      },
+      stripeClient,
+      stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
+      createCustomerOnSignUp: true,
+    }),
+    nextCookies(),
+  ], // make sure this is the last plugin in the array
 });

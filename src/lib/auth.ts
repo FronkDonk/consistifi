@@ -38,11 +38,11 @@ export const auth = betterAuth({
         enabled: true,
         plans: [
           {
-            name: "starter yearly",
+            name: "starter_yearly",
             priceId: "prod_SgVk6hzHgMUvtl",
           },
           {
-            name: "starter monthly",
+            name: "starter_monthly",
             priceId: "prod_SgVgRwBH9nOnY6",
           },
         ],

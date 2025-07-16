@@ -65,7 +65,7 @@ export default function Pricing6({
 
                         <Button onClick={async () => {
                             await authClient.subscription.upgrade({
-                                plan: "starter monthly",
+                                plan: "starter_monthly",
                                 successUrl: "/dashboard",
                                 cancelUrl: "/pricing",
 

@@ -6,19 +6,37 @@ import {
   pgTable,
   text,
   timestamp,
-  smallint,
+  integer,
 } from "drizzle-orm/pg-core";
-import { number } from "zod";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").notNull(),
+  emailVerified: boolean("email_verified")
+    .$defaultFn(() => false)
+    .notNull(),
   image: text("image"),
-  createdAt: timestamp("created_at").notNull(),
-  updatedAt: timestamp("updated_at").notNull(),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
   stripeCustomerId: text("stripe_customer_id"),
+});
+
+export const subscriptions = pgTable("subscriptions", {
+  id: text("id").primaryKey(),
+  plan: text("plan").notNull(),
+  referenceId: text("reference_id").notNull(),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  status: text("status").default("incomplete"),
+  periodStart: timestamp("period_start"),
+  periodEnd: timestamp("period_end"),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end"),
+  seats: integer("seats"),
 });
 
 export const sessions = pgTable("sessions", {
@@ -57,8 +75,12 @@ export const verifications = pgTable("verifications", {
   identifier: text("identifier").notNull(),
   value: text("value").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at"),
-  updatedAt: timestamp("updated_at"),
+  createdAt: timestamp("created_at").$defaultFn(
+    () => /* @__PURE__ */ new Date(),
+  ),
+  updatedAt: timestamp("updated_at").$defaultFn(
+    () => /* @__PURE__ */ new Date(),
+  ),
 });
 
 export const userBusiness = pgTable("user_business", {
@@ -116,21 +138,6 @@ export const scanResults = pgTable("scan_results", {
     | null
     | undefined
   >(),
-});
-
-export const subscriptions = pgTable("subscriptions", {
-  id: text("id").primaryKey(),
-  plan: text("plan").notNull(),
-  referenceId: text("reference_id").notNull(),
-  stripeCustomerId: text("stripe_customer_id"),
-  stripeSubscriptionId: text("stripe_subscription_id"),
-  status: text("status").notNull(),
-  periodStart: timestamp("period_start"),
-  periodEnd: timestamp("period_end"),
-  cancelAtPeriodEnd: boolean("cancel_at_period_end"),
-  seats: smallint("seats"),
-  trialStart: timestamp("trial_start"),
-  trialEnd: timestamp("trial_end"),
 });
 
 export const scanResultsRelations = relations(scanResults, ({ one }) => ({

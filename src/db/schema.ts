@@ -122,7 +122,7 @@ export const scanResults = pgTable("scan_results", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
-  scansId: text("scan_id").references(() => scans.id, {
+  scanId: text("scan_id").references(() => scans.id, {
     onDelete: "cascade",
   }),
   source: text("source").notNull(),

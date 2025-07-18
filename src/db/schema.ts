@@ -1,14 +1,42 @@
 import { randomUUID } from "crypto";
-import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
+import {
+  boolean,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  integer,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").notNull(),
+  emailVerified: boolean("email_verified")
+    .$defaultFn(() => false)
+    .notNull(),
   image: text("image"),
-  createdAt: timestamp("created_at").notNull(),
-  updatedAt: timestamp("updated_at").notNull(),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  stripeCustomerId: text("stripe_customer_id"),
+});
+
+export const subscriptions = pgTable("subscriptions", {
+  id: text("id").primaryKey(),
+  plan: text("plan").notNull(),
+  referenceId: text("reference_id").notNull(),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  status: text("status").default("incomplete"),
+  periodStart: timestamp("period_start"),
+  periodEnd: timestamp("period_end"),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end"),
+  seats: integer("seats"),
 });
 
 export const sessions = pgTable("sessions", {
@@ -47,8 +75,12 @@ export const verifications = pgTable("verifications", {
   identifier: text("identifier").notNull(),
   value: text("value").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at"),
-  updatedAt: timestamp("updated_at"),
+  createdAt: timestamp("created_at").$defaultFn(
+    () => /* @__PURE__ */ new Date(),
+  ),
+  updatedAt: timestamp("updated_at").$defaultFn(
+    () => /* @__PURE__ */ new Date(),
+  ),
 });
 
 export const userBusiness = pgTable("user_business", {
@@ -61,10 +93,59 @@ export const userBusiness = pgTable("user_business", {
   businessName: text("business_name").notNull(),
   address: text("address").notNull(),
   phone: text("phone").notNull(),
+  country: text("country").notNull(),
   lat: text("lat").notNull(),
   lng: text("lng").notNull(),
   regionCode: text("region_code").notNull(),
 });
+
+export const scans = pgTable("scan", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => randomUUID()),
+  userBusinessId: text("user_business_id").references(() => userBusiness.id, {
+    onDelete: "cascade",
+  }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  businessName: text("business_name").notNull(),
+  platforms: text("platforms").notNull(),
+  scanDate: timestamp("scan_date").notNull().defaultNow(),
+});
+
+export const scanRelations = relations(scans, ({ many }) => ({
+  scanResults: many(scanResults),
+}));
+
+export const scanResults = pgTable("scan_results", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => randomUUID()),
+  scansId: text("scan_id").references(() => scans.id, {
+    onDelete: "cascade",
+  }),
+  source: text("source").notNull(),
+  businessName: text("business_name").notNull(),
+  address: text("address").notNull(),
+  phone: text("phone").notNull(),
+  results: jsonb("results").$type<
+    | {
+        phoneMatch: boolean;
+        businessNameMatch: boolean;
+        addressMatch: boolean;
+      }
+    | null
+    | undefined
+  >(),
+});
+
+export const scanResultsRelations = relations(scanResults, ({ one }) => ({
+  scan: one(scans, {
+    fields: [scanResults.scanId],
+    references: [scans.id],
+  }),
+}));
 
 export type InsertUser = typeof users.$inferInsert;
 export type SelectUser = typeof users.$inferSelect;

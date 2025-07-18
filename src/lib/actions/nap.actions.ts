@@ -5,7 +5,7 @@ import { authenticatedAction } from "./safe-action";
 import { placesClient } from "../google";
 import { chromium } from "playwright";
 import { db } from "@/db/drizzle";
-import { userBusiness } from "@/db/schema";
+import { scan, scanResults, userBusiness } from "@/db/schema";
 import { redirect } from "next/navigation";
 import { CountryCode, parsePhoneNumberWithError } from "libphonenumber-js";
 import { parse } from "path";
@@ -51,9 +51,10 @@ export const google = authenticatedAction
     console.log(res?.[0]?.places?.[0]?.displayName?.text ?? "No name found");
 
     return {
-      googleAddress: res?.[0]?.places?.[0]?.formattedAddress,
-      googlePhone: res?.[0]?.places?.[0]?.nationalPhoneNumber,
-      googleName: res?.[0]?.places?.[0]?.displayName?.text,
+      source: "google",
+      address: res?.[0]?.places?.[0]?.formattedAddress,
+      phone: res?.[0]?.places?.[0]?.nationalPhoneNumber,
+      businessName: res?.[0]?.places?.[0]?.displayName?.text,
     };
   });
 
@@ -97,9 +98,10 @@ export const bing = authenticatedAction
       const phone = await page.locator('a[href^="tel:"]').first().innerText();
 
       return {
-        bingName: name,
-        bingAddress: address,
-        bingPhone: phone,
+        source: "bing",
+        businessName: name,
+        address: address,
+        phone: phone,
       };
     } finally {
       await browser.close();
@@ -153,26 +155,27 @@ export const apple = authenticatedAction
         .innerText();
 
       return {
-        appleName: name,
-        appleAddress: fullAddress,
-        applePhone: phoneNumber,
+        source: "apple",
+        businessName: name,
+        address: fullAddress,
+        phone: phoneNumber,
       };
     } finally {
       await browser.close();
     }
   });
 
-export const AddressSearchAutoComplete = authenticatedAction
+export const BusinessSearchAutoComplete = authenticatedAction
   .createServerAction()
   .input(
     z.object({
-      address: z.string(),
+      businessName: z.string(),
     }),
   )
   .handler(async ({ input }) => {
-    const { address } = input;
+    const { businessName } = input;
     const res = await placesClient.autocompletePlaces({
-      input: address,
+      input: businessName,
     });
 
     return res[0]?.suggestions;
@@ -235,9 +238,33 @@ export const saveBusinessInfo = authenticatedAction
 
 export const scanBusinessInfo = authenticatedAction
   .createServerAction()
+  .input(
+    z.object({
+      scanId: z.string(),
+    }),
+  )
   .handler(async ({ ctx }) => {
     const user = ctx.user;
-    console.log("Scanning business info for user:", user.id);
+
+    const existingScan = await db.query.scan.findFirst({
+      where: (scan, { eq }) => eq(scan.userId, user.id),
+      with: {
+        scanResults: true,
+      },
+    });
+
+    if (existingScan) {
+      return existingScan.scanResults.map((result) => {
+        return {
+          source: result.source,
+          result: result.results,
+          businessName: result.businessName,
+          address: result.address,
+          phone: result.phone,
+        };
+      });
+    }
+
     const businessData = await db.query.userBusiness.findFirst({
       where: (userBusiness, { eq }) => eq(userBusiness.userId, user.id),
     });
@@ -265,28 +292,10 @@ export const scanBusinessInfo = authenticatedAction
         bingError,
         appleError,
       });
+      return;
     }
 
-    const sources = [
-      {
-        source: "google",
-        address: googleData?.googleAddress ?? "",
-        phone: googleData?.googlePhone ?? "",
-        name: googleData?.googleName ?? "",
-      },
-      {
-        source: "bing",
-        address: bingData?.bingAddress ?? "",
-        phone: bingData?.bingPhone ?? "",
-        name: bingData?.bingName ?? "",
-      },
-      {
-        source: "apple",
-        address: appleData?.appleAddress ?? "",
-        phone: appleData?.applePhone ?? "",
-        name: appleData?.appleName ?? "",
-      },
-    ];
+    const sources = [googleData, bingData, appleData];
 
     const [
       [googleResult, googleResultError],
@@ -297,34 +306,64 @@ export const scanBusinessInfo = authenticatedAction
         ({
           address: externalAddress,
           phone: externalPhone,
-          name: externalName,
+          businessName: externalName,
+          source,
         }) =>
           checkBusinessConsistency({
+            source,
             userAddress: address,
-            address: externalAddress,
+            address: externalAddress ?? "",
             userBusinessName: businessName,
-            businessName: externalName,
+            businessName: externalName ?? "",
             userPhone: phone,
-            phone: externalPhone,
+            phone: externalPhone ?? "",
             regionCode,
           }),
       ),
     );
 
-    return {
-      googleResult,
-      googleData,
-      bingResult,
-      bingData,
-      appleResult,
-      appleData,
-    };
+    const consistencyResults = [
+      {
+        source: "google",
+        result: googleResult,
+        data: googleData,
+      },
+      {
+        source: "bing",
+        result: bingResult,
+        data: bingData,
+      },
+      {
+        source: "apple",
+        result: appleResult,
+        data: appleData,
+      },
+    ];
+
+    const scanId = crypto.randomUUID();
+
+    await Promise.all(
+      consistencyResults.map(async ({ source, result, data }) => {
+        await db.insert(scanResults).values({
+          // @ts-expect-error Weird fkn bug in drizzle
+          scanId,
+          source,
+          businessName: data.businessName,
+          address: data.address,
+          phone: data.phone,
+          results: result,
+        });
+      }),
+    );
+
+    return consistencyResults;
   });
 
 export const checkBusinessConsistency = authenticatedAction
   .createServerAction()
   .input(
     z.object({
+      source: z.string(),
       userBusinessName: z.string(),
       businessName: z.string(),
       userAddress: z.string(),
@@ -343,6 +382,7 @@ export const checkBusinessConsistency = authenticatedAction
       userPhone,
       phone,
       regionCode,
+      source,
     } = input;
 
     console.log("CHECKING BUSINESS CONSISTENCY");
@@ -427,6 +467,7 @@ export const checkBusinessConsistency = authenticatedAction
       }
 
       return {
+        source,
         phoneMatch,
         businessNameMatch,
         addressMatch,

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "../trpc";
 import { chromium } from "playwright";
 import { placesClient } from "@/lib/google";
-import { AddressSearch } from "@/app/(main)/scan/address-search";
+import { AddressSearch } from "@/app/(main)/scan/business-search";
 export const scrapeRouter = createTRPCRouter({
   geocoding: publicProcedure
     .input(

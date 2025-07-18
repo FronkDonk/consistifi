@@ -1,19 +1,19 @@
 "use client"
 
 import { Input } from '@/components/ui/input'
-import { AddressSearchAutoComplete } from '@/lib/actions/nap.actions';
+import { BusinessSearchAutoComplete } from '@/lib/actions/nap.actions';
 import { useMutation } from '@tanstack/react-query';
 import { LoaderCircleIcon, MapPinIcon, SearchIcon } from 'lucide-react';
 import React, { useEffect, useState } from 'react'
 import { useDebounce } from 'use-debounce';
 
-export default function AddressSearch({ selectedAddress, setSelectedAddress, appendFormValue }: { selectedAddress: string, setSelectedAddress: (address: string) => void, appendFormValue: ({ selectedAddress, placeId }: { selectedAddress: string, placeId: string }) => void }) {
+export function BusinessSearch({ selectedBusiness, setSelectedBusiness, appendFormValue }: { selectedBusiness: string, setSelectedBusiness: (address: string) => void, appendFormValue: ({ selectedBusinessName, address, placeId }: { selectedBusinessName: string, address: string, placeId: string }) => void }) {
     const [input, setInput] = useState('');
     const [debouncedInput] = useDebounce(input, 300);
 
     const { status, data: addressResult, mutate: serachForAddress } = useMutation({
-        mutationFn: async ({ address }: { address: string }) => {
-            const result = await AddressSearchAutoComplete({ address });
+        mutationFn: async ({ businessName }: { businessName: string }) => {
+            const result = await BusinessSearchAutoComplete({ businessName });
             return result[0];
         },
     });
@@ -23,10 +23,10 @@ export default function AddressSearch({ selectedAddress, setSelectedAddress, app
 
 
     useEffect(() => {
-        if (debouncedInput && !selectedAddress) {
-            serachForAddress({ address: debouncedInput });
+        if (debouncedInput && !selectedBusiness) {
+            serachForAddress({ businessName: debouncedInput });
         }
-    }, [debouncedInput, serachForAddress, selectedAddress]);
+    }, [debouncedInput, serachForAddress, selectedBusiness]);
 
     return (
         <div className="relative w-full">
@@ -37,7 +37,7 @@ export default function AddressSearch({ selectedAddress, setSelectedAddress, app
                     value={input}
                     onChange={(e) => {
                         setInput(e.target.value)
-                        setSelectedAddress("")
+                        setSelectedBusiness("")
                     }}
                     placeholder="Search..."
                 />
@@ -51,16 +51,17 @@ export default function AddressSearch({ selectedAddress, setSelectedAddress, app
             <div
                 className="bg-background border border-t-0 rounded-md rounded-t-none border-input top-full absolute w-full z-10"
             >
-                {!selectedAddress && addressResult && addressResult.length > 0 && addressResult.map((result, index) => (
+                {!selectedBusiness && addressResult && addressResult.length > 0 && addressResult.map((result, index) => (
                     <div
                         className={`hover:cursor-pointer hover:bg-muted ${addressResult.length - 1 !== index && "border-b"} p-2`}
                         key={index}
                         onClick={() => {
                             console.log("Selected address:", result.placePrediction?.text?.text);
                             setInput(result.placePrediction?.text?.text || "");
-                            setSelectedAddress(result.placePrediction?.text?.text || "");
+                            setSelectedBusiness(result.placePrediction?.text?.text || "");
+                            console.log(result.placePrediction)
 
-                            appendFormValue({ selectedAddress: result.placePrediction?.text?.text || "", placeId: result.placePrediction?.placeId || "" });
+                            appendFormValue({ selectedBusinessName: result.placePrediction?.structuredFormat?.mainText?.text || "", address: result.placePrediction?.structuredFormat?.secondaryText?.text || "", placeId: result.placePrediction?.placeId || "" });
                         }}
 
                     >

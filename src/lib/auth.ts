@@ -34,22 +34,22 @@ export const auth = betterAuth({
 
   plugins: [
     stripe({
+      stripeClient,
+      stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
+      createCustomerOnSignUp: true,
       subscription: {
         enabled: true,
         plans: [
           {
             name: "starter_yearly",
-            priceId: "prod_SgVk6hzHgMUvtl",
+            priceId: "price_1Rl8igPqVRKTRl16U4TR2c3W",
           },
           {
             name: "starter_monthly",
-            priceId: "prod_SgVgRwBH9nOnY6",
+            priceId: "price_1Rl8fCPqVRKTRl16oTAGo7L4",
           },
         ],
       },
-      stripeClient,
-      stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
-      createCustomerOnSignUp: true,
     }),
     nextCookies(),
   ], // make sure this is the last plugin in the array

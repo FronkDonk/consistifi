@@ -99,7 +99,7 @@ export const userBusiness = pgTable("user_business", {
   regionCode: text("region_code").notNull(),
 });
 
-export const scan = pgTable("scan", {
+export const scans = pgTable("scan", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
@@ -114,7 +114,7 @@ export const scan = pgTable("scan", {
   scanDate: timestamp("scan_date").notNull().defaultNow(),
 });
 
-export const scanRelations = relations(scan, ({ many }) => ({
+export const scanRelations = relations(scans, ({ many }) => ({
   scanResults: many(scanResults),
 }));
 
@@ -122,7 +122,7 @@ export const scanResults = pgTable("scan_results", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
-  scanId: text("scan_id").references(() => scan.id, {
+  scansId: text("scan_id").references(() => scans.id, {
     onDelete: "cascade",
   }),
   source: text("source").notNull(),
@@ -141,9 +141,9 @@ export const scanResults = pgTable("scan_results", {
 });
 
 export const scanResultsRelations = relations(scanResults, ({ one }) => ({
-  scan: one(scan, {
+  scan: one(scans, {
     fields: [scanResults.scanId],
-    references: [scan.id],
+    references: [scans.id],
   }),
 }));
 
